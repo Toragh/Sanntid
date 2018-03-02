@@ -1,5 +1,7 @@
 # Exercise 8 : Forward error recovery
 
+*As a starting point you can either use your code from Exercise 7 or the  [provided starter code](https://github.com/TTK4145/Exercise8/blob/master/exercise8.adb)*
+
 Last time we looked at backward error recovery, where upon error all participants in a transaction reverted to a previous consistent state, and started over. In some situations this behaviour is unacceptable, because an error may happen many times in a row, which means there will be no upper bound on the number of retries required. Instead, we have to compensate for the error by finding a new (but probably sub-optimal) consistent state for the system. This is known as forward error recovery.
 
 Regardless of whether we are using backward or forward error recovery, there may still be participants that are doing work that will never be used, since another participant has already signalled that the transaction should be aborted. The Ada language provides a mechanism for notifying tasks asynchronously, so they can be aborted immediately when a certain event triggers. This event can either be a delay, or the condition of a protected object entry becoming true. This mechanism is called "Asynchronous Transfer of Control", or ATC. 
