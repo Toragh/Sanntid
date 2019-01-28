@@ -2,6 +2,7 @@
 # python fo.py
 
 from threading import Thread
+from threading import Lock
 
 
 # Potentially useful thing:
@@ -9,27 +10,35 @@ from threading import Thread
 #   (This is probably an effort to make you feel bad about typing the word "global")
 i = 0
 
-def incrementingFunction():
+def incrementingFunction(lock):
     global i
-    # TODO: increment i 1_000_000 times
+    for c in range(0,1000000):
+        lock.acquire()
+        i += 1
+        lock.release()
 
-def decrementingFunction():
+def decrementingFunction(lock):
     global i
-    # TODO: decrement i 1_000_000 times
-
+    for c in range(0,1000000):
+        lock.acquire()
+        i -= 1
+        lock.release()
 
 
 def main():
-    # TODO: Something is missing here (needed to print i)
+    global i
+    lock = Lock()
 
-    incrementing = Thread(target = incrementingFunction, args = (),)
-    decrementing = Thread(target = decrementingFunction, args = (),)
-    
-    # TODO: Start both threads
-    
+
+    incrementing = Thread(target = incrementingFunction, args = (lock,),)
+    decrementing = Thread(target = decrementingFunction, args = (lock,),)
+
+    incrementing.start()
+    decrementing.start()
+
     incrementing.join()
     decrementing.join()
-    
+
     print("The magic number is %d" % (i))
 
 

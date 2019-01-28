@@ -1,0 +1,3 @@
+log
+Heisene prioriterer det som ligger på sin vei
+Ordre prioriteres først på tid så  prioriteres det på avstand

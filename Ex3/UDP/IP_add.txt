@@ -1,0 +1,3 @@
+10.100.23.242:58938 <- hva er siste del av dette tallet
+
+	Conn, err := net.DialUDP("udp", nil, ServerAddr)  <- Hvorfor nil?
