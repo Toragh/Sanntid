@@ -35,6 +35,7 @@ func main() {
 		file.write(1)
 	}
 	file.close();
+
 	go peers.Transmitter(15647, id, primaryPing)
 	pinger(primaryPing)
 
