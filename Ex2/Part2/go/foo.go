@@ -7,7 +7,8 @@ import (
 	"runtime"
 )
 
-// Control signals
+// States
+type State int;
 const (
 	GetNumber = iota
 	Exit
