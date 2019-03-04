@@ -2,17 +2,19 @@ package main
 
 import (
 	"./network/bcast"
-  "./network/localip"
-  "./network/peers"
-  "fmt"
-  "runtime"
-	"io/ioutil"
+	"./network/localip"
+	"fmt"
 	"os"
+	"time"
+"io/ioutil"
+"encoding/binary"
 )
-const filename := "backupfile.txt"
+
+
 
 func main() {
 	var id string
+	filename := "backupfile.txt"
 	if id == "" {
 		localIP, err := localip.LocalIP()
 		if err != nil {
@@ -21,48 +23,57 @@ func main() {
 		}
 		id = fmt.Sprintf("peer-%s-%d", localIP, os.Getpid())
 	}
-
-	primaryPing := make(chan)
-	primaryDown := make(chan)
-	go peers.Receiver(15647, primaryPing)
+	primaryPing := make(chan int)
+	primaryDown := make(chan int)
+	go bcast.Receiver(15647, primaryPing)
 	go primaryCkecker(primaryPing, primaryDown)
 
 	<-primaryDown //wait for primary to go down
-
-	file, err := os.Open(filename, os.O_CREATE, 0755) // For read access.
+	
+	ioutil.WriteFile("/tmp/dat1", d1, 0644)
 	info, err := os.Stat(filename)
 	if info.Size() == 0 {
-		file.write(1)
+		file, err := os.Open(filename)
+		if err != nil {
+			fmt.Println(err)
+		}
+		file.WriteString(fmt.Sprintf("%d\n", 0))
+		file.Close();
 	}
-	file.close();
 
-	go peers.Transmitter(15647, id, primaryPing)
+	go bcast.Transmitter(15647, id, primaryPing)
 	pinger(primaryPing)
-
-	for now := range time.Tick(0.5*time.Second) {
+	
+	for range time.Tick(500*time.Millisecond) {
 		file, err := os.Open(filename) // For read access.
-		fmt.Println(file.read())
-		file.close()
+		if err != nil {
+			fmt.Println(err)
+		}
+		b := make([]byte, 4)
+    		file.Read(b)
+		i := binary.BigEndian.Uint32(b)
+		fmt.Println(i)
+		i += 1
+		file.WriteString(fmt.Sprintf("%d\n", i))
+		file.Close()
 	}
 }
 
-func primaryCkecker(primaryPing chan, primaryDown chan) {
-	timeout := make(chan timer)
+func primaryCkecker(primaryPing chan int, primaryDown chan int) {
 	for {
-		timeout = time.NewTimer(200 * time.MilliSecond)
-
 		select {
-		case: primaryPing
-		// do nothing
-		case: timeout
-	  primaryDown <-
-		break; //Break loop and end
+		case <-primaryPing:
+			// do nothing
+		case <-time.After(300 * time.Millisecond):
+	  		primaryDown <- 1
+			return //Break loop and end
 		}
 	}
 }
 
-func pinger(primaryPing chan) {
-	for now := range time.Tick(20 * time.MilliSecond) {
-		primaryPing <-
+func pinger(primaryPing chan int) {
+	for range time.Tick(100 * time.Millisecond) {
+		primaryPing <- 1
 	}
 }
+
