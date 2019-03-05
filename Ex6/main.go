@@ -6,15 +6,19 @@ import (
 	"fmt"
 	"os"
 	"time"
-"io/ioutil"
 "encoding/binary"
+"log"
+"bytes"
+"os/exec"
 )
 
-
+type database struct {
+	Data uint32
+}
 
 func main() {
 	var id string
-	filename := "backupfile.txt"
+	filename := "backup.bin"
 	if id == "" {
 		localIP, err := localip.LocalIP()
 		if err != nil {
@@ -23,40 +27,77 @@ func main() {
 		}
 		id = fmt.Sprintf("peer-%s-%d", localIP, os.Getpid())
 	}
+
 	primaryPing := make(chan int)
 	primaryDown := make(chan int)
 	go bcast.Receiver(15647, primaryPing)
 	go primaryCkecker(primaryPing, primaryDown)
-
+//Backup ends
 	<-primaryDown //wait for primary to go down
-	
-	ioutil.WriteFile("/tmp/dat1", d1, 0644)
-	info, err := os.Stat(filename)
-	if info.Size() == 0 {
-		file, err := os.Open(filename)
+//Primary starts
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		file, err := os.Create(filename)
 		if err != nil {
-			fmt.Println(err)
+			log.Fatal(err)
 		}
-		file.WriteString(fmt.Sprintf("%d\n", 0))
-		file.Close();
+
+		s := &database{
+					0,
+				}
+		var bin_buf bytes.Buffer
+		binary.Write(&bin_buf, binary.BigEndian, s)
+		writeNextBytes(file, bin_buf.Bytes())
+	  file.Close()
+
 	}
 
-	go bcast.Transmitter(15647, id, primaryPing)
-	pinger(primaryPing)
-	
-	for range time.Tick(500*time.Millisecond) {
-		file, err := os.Open(filename) // For read access.
-		if err != nil {
-			fmt.Println(err)
-		}
-		b := make([]byte, 4)
-    		file.Read(b)
-		i := binary.BigEndian.Uint32(b)
-		fmt.Println(i)
-		i += 1
-		file.WriteString(fmt.Sprintf("%d\n", i))
-		file.Close()
+
+	go bcast.Transmitter(15647, primaryPing)
+	go pinger(primaryPing)
+
+	cmd := exec.Command("gnome-terminal", "-x", "sh", "-c", "go run main.go")
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
 	}
+	for range time.Tick(500*time.Millisecond) {
+		file, err := os.OpenFile(filename, os.O_RDWR, 0755)
+		m := database{}
+		data := readNextBytes(file, 16)
+		buffer := bytes.NewBuffer(data)
+		err = binary.Read(buffer, binary.BigEndian, &m)
+		if err != nil {
+			log.Fatal("binary.Read failed", err)
+		}
+		file.Close()
+		m.Data +=1;
+		fmt.Println(m.Data)
+
+		file, err = os.OpenFile(filename, os.O_WRONLY, 0755)
+		var bin_buf1 bytes.Buffer
+		binary.Write(&bin_buf1, binary.BigEndian, m)
+		writeNextBytes(file, bin_buf1.Bytes())
+	  file.Close()
+	}
+}
+
+
+func writeNextBytes(file *os.File, bytes []byte) {
+	_, err := file.Write(bytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func readNextBytes(file *os.File, number int) []byte {
+	bytes := make([]byte, number)
+
+	_, err := file.Read(bytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return bytes
 }
 
 func primaryCkecker(primaryPing chan int, primaryDown chan int) {
@@ -65,7 +106,7 @@ func primaryCkecker(primaryPing chan int, primaryDown chan int) {
 		case <-primaryPing:
 			// do nothing
 		case <-time.After(300 * time.Millisecond):
-	  		primaryDown <- 1
+	  	primaryDown <- 1
 			return //Break loop and end
 		}
 	}
@@ -76,4 +117,3 @@ func pinger(primaryPing chan int) {
 		primaryPing <- 1
 	}
 }
-
